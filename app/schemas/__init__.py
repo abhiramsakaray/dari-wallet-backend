@@ -1,0 +1,1 @@
+# Pydantic schemas for DARI Wallet Backend API 
