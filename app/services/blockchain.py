@@ -351,27 +351,22 @@ class XRPProvider(BlockchainProvider):
 class BlockchainService:
     """Main blockchain service that manages multiple chain providers"""
     
-    def __init__(self):
-        self.providers = {
-            'ethereum': EthereumProvider(),
-            'bsc': BSCProvider(),
-            'tron': TronProvider(),
-            'solana': SolanaProvider(),
-            'bitcoin': BitcoinProvider(),
-            'xrp': XRPProvider()
-        }
-    
-    def get_provider(self, chain: str) -> BlockchainProvider:
-        """Get blockchain provider for specific chain"""
-        chain = chain.lower()
-        if chain not in self.providers:
+    def __init__(self, chain: str = 'ethereum'):
+        # Select provider based on chain
+        if chain == 'ethereum':
+            self.provider = EthereumProvider()
+        elif chain == 'bsc':
+            self.provider = BSCProvider()
+        elif chain == 'solana':
+            self.provider = SolanaProvider()
+        elif chain == 'bitcoin':
+            self.provider = BitcoinProvider()
+        # ... add other chains as needed
+        else:
             raise ValueError(f"Unsupported chain: {chain}")
-        return self.providers[chain]
-    
-    def generate_wallet(self, chain: str, encryption_key: bytes) -> Tuple[str, str, str]:
-        """Generate wallet for specific chain"""
-        provider = self.get_provider(chain)
-        return provider.generate_wallet(encryption_key)
+
+    def generate_wallet(self, encryption_key: bytes):
+        return self.provider.generate_wallet(encryption_key)
     
     def get_balance(self, chain: str, address: str) -> Decimal:
         """Get balance for specific chain and address"""

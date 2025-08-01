@@ -21,7 +21,7 @@ def run_migration():
     print("Starting database migration...")
     
     # Create database engine
-    engine = create_engine(settings.DATABASE_URL)
+    engine = create_engine(settings.database_url)
     
     with engine.connect() as conn:
         # Add new columns to users table

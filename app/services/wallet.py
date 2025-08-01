@@ -20,24 +20,20 @@ class WalletService:
         """Create a new wallet for a user on a specific chain"""
         # Generate encryption key for this wallet
         encryption_key = generate_encryption_key()
-        
-        # Generate wallet using blockchain service
-        address, encrypted_private_key, public_key = self.blockchain_service.generate_wallet(encryption_key)
-        
+        # Generate wallet using blockchain service, always pass encryption_key
+        blockchain_service = BlockchainService(chain)
+        address, encrypted_private_key, public_key = blockchain_service.generate_wallet(encryption_key)
         # Create wallet record
         wallet = Wallet(
             user_id=user.id,
             chain=chain,
             address=address,
             encrypted_private_key=encrypted_private_key,
-            public_key=public_key,
-            encryption_key=encryption_key.decode()
+            public_key=public_key
         )
-        
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
-        
         return wallet
     
     def get_user_wallets(self, db: Session, user: User) -> List[Wallet]:

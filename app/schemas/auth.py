@@ -48,7 +48,7 @@ class UserResponse(BaseModel):
     username: str
     full_name: Optional[str]
     phone: Optional[str]
-    default_currency_id: Optional[int]
+    default_currency_id: int  # <--- This is required!
     is_active: bool
     is_verified: bool
     two_factor_enabled: bool

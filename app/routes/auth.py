@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import datetime
 from app.core.database import get_db
@@ -10,7 +11,8 @@ from app.models.role import Role
 from app.schemas.auth import UserRegister, UserLogin, Token, UserResponse, UserUpdate, PasswordChange
 from app.services.login_logger import LoginLogger
 from app.services.otp import OTPService
-from typing import List
+from typing import List, Union
+from app.core.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 security = HTTPBearer()
@@ -78,7 +80,7 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     )
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login")  # Remove response_model=Token for now
 def login(user_data: UserLogin, request: Request, db: Session = Depends(get_db)):
     """Login user and return tokens"""
     user = db.query(User).filter(User.email == user_data.email).first()
@@ -118,39 +120,37 @@ def login(user_data: UserLogin, request: Request, db: Session = Depends(get_db))
     # Check if user is admin or role-based admin - require OTP for admin logins
     is_admin = user.role.name in ['admin', 'role_admin']
     
-    # Check if OTP is enabled for login or if user is admin
-    try:
-        from app.services.otp import is_login_otp_enabled
-        from app.models.otp import OTPChannel
+    # Determine if OTP is enabled in config
+    otp_enabled = getattr(settings, 'email_otp_enabled', False) or getattr(settings, 'sms_otp_enabled', False)
+    # Only require OTP for admin if OTP is enabled
+    if is_admin and otp_enabled:
+        requires_otp = True
+    else:
+        requires_otp = False
+    
+    if requires_otp:
+        # Log OTP requirement
+        login_logger.log_login_attempt(
+            email=user.email,
+            success=False,
+            user=user,
+            device_info=device_info,
+            ip_address=ip_address,
+            otp_required=True,
+            admin_login=is_admin
+        )
         
-        # Check if email OTP is enabled
-        email_otp_enabled = is_login_otp_enabled(db, OTPChannel.EMAIL)
-        sms_otp_enabled = is_login_otp_enabled(db, OTPChannel.SMS)
-        
-        # Admin users always require OTP
-        if is_admin or email_otp_enabled or sms_otp_enabled:
-            # Log OTP requirement
-            login_logger.log_login_attempt(
-                email=user.email,
-                success=False,
-                user=user,
-                device_info=device_info,
-                ip_address=ip_address,
-                otp_required=True,
-                admin_login=is_admin
-            )
-            
-            # OTP is enabled, return message to request OTP
-            return {
+        # OTP is enabled, return message to request OTP
+        return JSONResponse(
+            status_code=200,
+            content={
                 "message": "OTP verification required",
                 "requires_otp": True,
-                "email_otp_enabled": email_otp_enabled or is_admin,
-                "sms_otp_enabled": sms_otp_enabled,
+                "email_otp_enabled": getattr(settings, 'email_otp_enabled', False),
+                "sms_otp_enabled": getattr(settings, 'sms_otp_enabled', False),
                 "admin_login": is_admin
             }
-    except Exception as e:
-        # Log error but continue with normal login
-        print(f"Error checking OTP status: {str(e)}")
+        )
     
     # Normal login flow (no OTP required)
     return perform_login(user, db, login_logger, device_info, ip_address)
@@ -203,7 +203,8 @@ def get_current_user_info(current_user: User = Depends(get_current_active_user))
         is_active=current_user.is_active,
         is_verified=current_user.is_verified,
         two_factor_enabled=current_user.two_factor_enabled,
-        role=current_user.role.name,
+        role=current_user.role.name if current_user.role else None,  # <-- fix here
+        default_currency_id=current_user.default_currency_id,
         created_at=current_user.created_at,
         last_login=current_user.last_login
     )

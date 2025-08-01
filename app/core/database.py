@@ -16,6 +16,21 @@ AsyncSessionLocal = sessionmaker(
 
 Base = declarative_base()
 
+# Import all models so they are registered with Base
+from app.models.user import User
+from app.models.transaction import Transaction
+from app.models.wallet import Wallet
+from app.models.role import Role
+from app.models.token import Token
+from app.models.token_balance import TokenBalance
+from app.models.alias import Alias
+from app.models.log import Log
+from app.models.currency import Currency
+from app.models.notification import Notification, NotificationTemplate, NotificationSettings, NotificationType, NotificationChannel, NotificationStatus
+from app.models.otp import OTP, OTPConfig, OTPType, OTPChannel, OTPStatus
+from app.models.login_log import LoginLog
+# ...import any other models you have
+
 
 def get_db():
     """Dependency to get database session"""
