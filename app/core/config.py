@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     
     # Blockchain RPC URLs
     ethereum_rpc_url: str = "https://mainnet.infura.io/v3/your-project-id"
+    ganache_rpc_url: str = "http://localhost:8545"  # For testing only
     bsc_rpc_url: str = "https://bsc-dataseed1.binance.org"
     tron_rpc_url: str = "https://api.trongrid.io"
     solana_rpc_url: str = "https://api.mainnet-beta.solana.com"
@@ -55,7 +56,7 @@ class Settings(BaseSettings):
     log_file: str = "logs/dari_wallet.log"
     
     # CORS
-    allowed_origins: List[str] = ["http://localhost:3000", "https://your-frontend-domain.com"]
+    allowed_origins: List[str] = ["http://localhost:3000", "https://mybbi.in", "http://localhost:5173"]
     
     # Environment
     environment: str = "development"

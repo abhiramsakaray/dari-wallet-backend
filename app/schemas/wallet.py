@@ -9,7 +9,7 @@ class WalletCreate(BaseModel):
     
     @validator('chain')
     def validate_chain(cls, v):
-        supported_chains = ['ethereum', 'bsc', 'tron', 'solana', 'bitcoin', 'xrp']
+        supported_chains = ['ethereum', 'bsc', 'tron', 'solana', 'bitcoin', 'xrp', 'ganache', 'polygon']
         if v.lower() not in supported_chains:
             raise ValueError(f'Unsupported chain. Supported chains: {supported_chains}')
         return v.lower()

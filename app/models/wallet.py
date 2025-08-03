@@ -13,6 +13,7 @@ class Wallet(Base):
     encrypted_private_key = Column(Text, nullable=False)  # Encrypted private key
     public_key = Column(String)
     mnemonic_phrase = Column(Text)  # Encrypted mnemonic phrase
+    encryption_key = Column(String)  # Fernet key for encryption/decryption
     balance = Column(Numeric(20, 8), default=0)  # Native token balance
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -26,6 +27,7 @@ class Wallet(Base):
     user = relationship("User", back_populates="wallets")
     token_balances = relationship("TokenBalance", back_populates="wallet")
     transactions = relationship("Transaction", back_populates="wallet")
+    qr_codes = relationship("QRCode", back_populates="wallet")
     
     def __repr__(self):
         return f"<Wallet(id={self.id}, chain='{self.chain}', address='{self.address}')>" 

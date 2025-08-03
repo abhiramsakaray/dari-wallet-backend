@@ -44,7 +44,8 @@ class TransactionService:
                 raise ValueError(f"Token {transaction_data.token_symbol} not supported on {transaction_data.chain}")
         
         # Decrypt private key
-        encryption_key = wallet.encryption_key.encode()
+        # Use wallet.encryption_key (must be a valid Fernet key, 32 url-safe base64-encoded bytes)
+        encryption_key = wallet.encryption_key.encode()  # wallet.encryption_key should be stored in DB
         private_key = decrypt_private_key(wallet.encrypted_private_key, encryption_key)
         
         # Send transaction on blockchain

@@ -40,6 +40,8 @@ class User(Base):
     notification_settings = relationship("NotificationSettings", back_populates="user", uselist=False)
     otps = relationship("OTP", back_populates="user")
     login_logs = relationship("LoginLog", back_populates="user")
+    terms_agreements = relationship("UserTermsAgreement", back_populates="user")
+    qr_codes = relationship("QRCode", back_populates="user")
     
     def __repr__(self):
         return f"<User(id={self.id}, email='{self.email}', username='{self.username}')>" 

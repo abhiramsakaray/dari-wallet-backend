@@ -29,6 +29,8 @@ from app.models.currency import Currency
 from app.models.notification import Notification, NotificationTemplate, NotificationSettings, NotificationType, NotificationChannel, NotificationStatus
 from app.models.otp import OTP, OTPConfig, OTPType, OTPChannel, OTPStatus
 from app.models.login_log import LoginLog
+from app.models.terms import TermsAndConditions, UserTermsAgreement
+from app.models.qr_code import QRCode
 # ...import any other models you have
 
 

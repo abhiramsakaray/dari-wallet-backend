@@ -12,7 +12,7 @@ A secure, semi-custodial, multi-chain blockchain wallet backend built with FastA
 - **Username Resolution**: `username@dari` system for easy transfers
 - **Default Currency Selection**: Users can select their preferred default currency during registration
 - **Comprehensive Notifications**: App, Email, and SMS notifications for all wallet activities
-- **OTP Verification**: Email and SMS OTP verification for enhanced login security (admin configurable)
+- **OTP Verification**: Email and SMS OTP verification for enhanced login security (currently disabled for development)
 
 ### Wallet Management
 - **Wallet Generation**: Create wallets for all supported chains
@@ -25,8 +25,8 @@ A secure, semi-custodial, multi-chain blockchain wallet backend built with FastA
 - **Rate Limiting**: API rate limiting protection
 - **Input Validation**: Comprehensive input sanitization
 - **Audit Logging**: Complete activity logging
-- **PIN Verification**: All transfers require PIN verification with OTP setup
-- **Admin OTP Login**: Admin and role-based admin logins require OTP verification
+- **PIN Verification**: All transfers require PIN verification (PIN setup required)
+- **Admin OTP Login**: Admin and role-based admin logins require OTP verification (currently disabled)
 - **Comprehensive Login Logging**: Device info, IP, location, and fraud analysis
 - **Transaction Fraud Detection**: Real-time fraud analysis with risk scoring
 - **Peak Usage Analytics**: Monitor user activity patterns and frequent transfers
@@ -40,7 +40,18 @@ A secure, semi-custodial, multi-chain blockchain wallet backend built with FastA
 - **Currency Management**: Add/remove supported currencies
 - **Notification Templates**: Manage notification templates for different events
 - **Notification Settings**: Configure email and SMS services
-- **OTP Management**: Configure OTP settings for login security
+- **OTP Management**: Configure OTP settings for login security (currently disabled)
+
+## ⚠️ Important Notes
+
+### Development Mode
+- **OTP Verification**: Currently disabled for development. All OTP fields are optional in API requests.
+- **PIN Setup**: Users must set up a PIN before making transactions. PIN verification is **MANDATORY** for all transfers.
+- **Terms and Conditions**: Users must accept Terms and Conditions during registration.
+- **QR Code Storage**: QR codes are now stored in the database as PNG images.
+- **Price Conversion**: Cryptocurrency prices are fetched from CoinGecko and converted to user's default currency.
+- **Ganache Support**: Added Ganache network support for backend testing (not for production).
+- **Admin Features**: OTP and messaging features will be enabled after admin panel development is complete.
 
 ## 📋 Prerequisites
 
@@ -208,12 +219,45 @@ sudo systemctl enable wallet-backend
 sudo systemctl start wallet-backend
 ```
 
-## 📚 API Documentation
+## 📚 Documentation
 
 Once the application is running, visit:
 - **Swagger UI**: http://localhost:8000/docs
 - **ReDoc**: http://localhost:8000/redoc
 - **Health Check**: http://localhost:8000/health
+
+### Additional Documentation
+- **Admin Guide**: [ADMIN_GUIDE.md](ADMIN_GUIDE.md) - Complete admin management guide
+- **Production Migration**: [PRODUCTION_MIGRATION.md](PRODUCTION_MIGRATION.md) - Database migration guide
+- **Testing Guide**: [TESTING_GUIDE.md](TESTING_GUIDE.md) - Comprehensive testing guide
+
+### Current API Endpoints Status
+
+#### ✅ Working Endpoints
+- **Authentication**: `/api/v1/auth/*` - Register, login, refresh tokens
+- **Wallet Management**: `/api/v1/wallet/*` - Create wallets, get balances, send transactions
+- **PIN Management**: `/api/v1/pin/*` - Set PIN, get PIN status (OTP optional)
+- **Admin Operations**: `/api/v1/admin/*` - User management, system stats
+- **Currency Management**: `/api/v1/currencies/*` - Get/set currencies
+- **Username Resolution**: `/api/v1/alias/*` - Set/resolve usernames
+- **Notifications**: `/api/v1/notifications/*` - Get notifications (messaging disabled)
+
+#### 🔧 Development Mode Features
+- **OTP Verification**: Disabled - All OTP fields are optional
+- **PIN Verification**: Optional - Can be skipped in development
+- **Messaging**: Disabled - Email/SMS notifications not active
+- **Admin Panel**: In development - OTP and messaging will be enabled after completion
+
+#### 📊 Key Endpoints
+- `GET /api/v1/wallet/balances` - Get all wallet balances with price conversion
+- `GET /api/v1/wallet/wallets` - Get all user wallets
+- `POST /api/v1/wallet/create` - Create new wallet
+- `POST /api/v1/wallet/transaction/send` - Send transaction (PIN required)
+- `GET /api/v1/pin/status` - Get PIN status
+- `POST /api/v1/pin/set` - Set PIN (OTP optional)
+- `GET /api/v1/terms/current` - Get current Terms and Conditions
+- `POST /api/v1/terms/agree` - Agree to Terms and Conditions
+- `GET /api/v1/wallet/{chain}/qr` - Generate QR code (stored in DB)
 
 ## 🔐 Authentication
 
@@ -226,9 +270,12 @@ curl -X POST "http://localhost:8000/api/v1/auth/register" \
     "username": "testuser",
     "password": "securepassword123",
     "full_name": "Test User",
-    "default_currency_id": 1
+    "default_currency_id": 1,
+    "accept_terms": true
   }'
 ```
+
+**Note**: Users must accept Terms and Conditions to register.
 
 ### Login:
 ```bash
@@ -258,7 +305,7 @@ curl -X GET "http://localhost:8000/api/v1/wallet/ethereum" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
 ```
 
-### Send transaction (with PIN verification):
+### Send transaction (PIN verification required):
 ```bash
 curl -X POST "http://localhost:8000/api/v1/wallet/transaction/send" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
@@ -274,6 +321,8 @@ curl -X POST "http://localhost:8000/api/v1/wallet/transaction/send" \
     }
   }'
 ```
+
+**Note**: PIN verification is now **MANDATORY** for all transactions.
 
 ## 📛 Username Resolution
 
@@ -346,7 +395,7 @@ curl -X POST "http://localhost:8000/api/v1/currencies" \
 
 ## 🔐 PIN Management
 
-### Set PIN (requires OTP verification):
+### Set PIN (OTP verification optional in development):
 ```bash
 curl -X POST "http://localhost:8000/api/v1/pin/set" \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
@@ -360,6 +409,54 @@ curl -X POST "http://localhost:8000/api/v1/pin/set" \
     "pin": "1234"
   }'
 ```
+
+**Note**: In development mode, OTP verification is optional. You can omit the `otp_verify` field or set `otp_code` to `null`.
+
+## 📋 Terms and Conditions
+
+### Get current Terms and Conditions:
+```bash
+curl -X GET "http://localhost:8000/api/v1/terms/current" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+### Agree to Terms and Conditions:
+```bash
+curl -X POST "http://localhost:8000/api/v1/terms/agree" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "terms_id": 1
+  }'
+```
+
+## 💰 Price Conversion
+
+### Get wallet balances with price conversion:
+```bash
+curl -X GET "http://localhost:8000/api/v1/wallet/balances" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+**Response includes:**
+- Balance in native cryptocurrency
+- Price in USD
+- Value in user's default currency
+- Currency code
+
+## 🧪 Testing with Ganache
+
+### Create wallet on Ganache network:
+```bash
+curl -X POST "http://localhost:8000/api/v1/wallet/create" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "chain": "ganache"
+  }'
+```
+
+**Note**: Ganache support is for backend testing only. Not for production use.
 
 ### Get PIN status:
 ```bash
@@ -509,8 +606,8 @@ dari-wallet-backend/
 4. **Audit Logging**: All sensitive operations are logged
 5. **CORS Protection**: Configured CORS policies
 6. **HTTPS**: Use HTTPS in production
-7. **PIN Verification**: All transfers require PIN verification with OTP setup
-8. **Admin OTP Login**: Admin and role-based admin logins require OTP verification
+7. **PIN Verification**: All transfers require PIN verification (PIN setup required)
+8. **Admin OTP Login**: Admin and role-based admin logins require OTP verification (currently disabled)
 9. **Comprehensive Login Logging**: Device info, IP, location, and fraud analysis
 10. **Transaction Fraud Detection**: Real-time fraud analysis with risk scoring
 11. **Failed Attempt Tracking**: Users blocked after 10 failed PIN attempts

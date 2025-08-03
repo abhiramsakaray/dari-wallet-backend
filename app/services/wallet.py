@@ -25,12 +25,13 @@ class WalletService:
         address, encrypted_private_key, public_key = blockchain_service.generate_wallet(encryption_key)
         # Create wallet record
         wallet = Wallet(
-            user_id=user.id,
-            chain=chain,
-            address=address,
-            encrypted_private_key=encrypted_private_key,
-            public_key=public_key
-        )
+       user_id=user.id,
+        chain=chain,
+        address=address,
+        encrypted_private_key=encrypted_private_key,
+        public_key=public_key,
+        encryption_key=encryption_key.decode()  # Store as string
+    )
         db.add(wallet)
         db.commit()
         db.refresh(wallet)
@@ -70,28 +71,62 @@ class WalletService:
         
         return wallet
     
-    def get_wallet_balances(self, db: Session, user: User) -> List[Dict]:
+    async def get_wallet_balances(self, db: Session, user: User) -> List[Dict]:
         """Get all wallet balances for a user"""
+        from app.services.price import price_service
         wallets = self.get_user_wallets(db, user)
         balances = []
-        
+        # Get user's default currency
+        user_currency = "usd"  # Default
+        if user.default_currency:
+            user_currency = user.default_currency.code.lower()
+        # CoinGecko coin IDs mapping
+        coin_mapping = {
+            'ethereum': 'ethereum',
+            'bsc': 'binancecoin',
+            'tron': 'tron',
+            'solana': 'solana',
+            'bitcoin': 'bitcoin',
+            'xrp': 'ripple',
+            'ganache': 'ethereum'  # Use Ethereum price for Ganache testing
+        }
         for wallet in wallets:
             try:
                 # Update balance from blockchain
                 self.update_wallet_balance(db, wallet)
-                
+                # Get price in user's default currency
+                price_usd = None
+                value_in_currency = None
+                if wallet.chain in coin_mapping:
+                    coin_id = coin_mapping[wallet.chain]
+                    price_usd = await price_service.get_crypto_price(coin_id, "usd")
+                    if price_usd and wallet.balance:
+                        value_in_currency = await price_service.convert_crypto_to_currency(
+                            coin_id, wallet.balance, user_currency
+                        )
                 balance_info = {
                     'chain': wallet.chain,
                     'address': wallet.address,
                     'balance': wallet.balance,
                     'symbol': self._get_native_symbol(wallet.chain),
-                    'price_usd': None,  # Would be fetched from price service
-                    'value_usd': None
+                    'price_usd': price_usd,
+                    'value_in_currency': value_in_currency,
+                    'currency': user_currency.upper()
                 }
                 balances.append(balance_info)
             except Exception as e:
                 print(f"Error getting balance for wallet {wallet.id}: {e}")
-        
+                # Add wallet with basic info even if price fetch fails
+                balance_info = {
+                    'chain': wallet.chain,
+                    'address': wallet.address,
+                    'balance': wallet.balance,
+                    'symbol': self._get_native_symbol(wallet.chain),
+                    'price_usd': None,
+                    'value_in_currency': None,
+                    'currency': user_currency.upper()
+                }
+                balances.append(balance_info)
         return balances
     
     def export_wallets(self, db: Session, user: User) -> List[Dict]:
@@ -145,4 +180,4 @@ class WalletService:
             }
             balances.append(balance_info)
         
-        return balances 
+        return balances

@@ -19,7 +19,7 @@ security = HTTPBearer()
 
 
 @router.post("/register", response_model=Token)
-def register(user_data: UserRegister, db: Session = Depends(get_db)):
+def register(user_data: UserRegister, request: Request, db: Session = Depends(get_db)):
     """Register a new user"""
     # Check if email already exists
     if db.query(User).filter(User.email == user_data.email).first():
@@ -68,6 +68,25 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
     db.add(user)
     db.commit()
     db.refresh(user)
+    
+    # Record terms acceptance if user agreed
+    if user_data.accept_terms:
+        from app.models.terms import UserTermsAgreement, TermsAndConditions
+        # Get current active terms
+        current_terms = db.query(TermsAndConditions).filter(
+            TermsAndConditions.status == "active",
+            TermsAndConditions.is_current == True
+        ).first()
+        
+        if current_terms:
+            user_agreement = UserTermsAgreement(
+                user_id=user.id,
+                terms_id=current_terms.id,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
+            db.add(user_agreement)
+            db.commit()
     
     # Create access and refresh tokens
     access_token = create_access_token(data={"sub": user.id})

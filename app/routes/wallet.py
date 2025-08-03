@@ -26,6 +26,16 @@ wallet_service = WalletService()
 transaction_service = TransactionService()
 
 
+@router.get("/balances", response_model=List[dict])
+async def get_wallet_balances(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get all wallet balances"""
+    balances = await wallet_service.get_wallet_balances(db, current_user)
+    return balances
+
+
 @router.post("/create", response_model=WalletResponse)
 def create_wallet(
     wallet_data: WalletCreate,
@@ -241,7 +251,13 @@ def send_transaction(
     db: Session = Depends(get_db)
 ):
     """Send a transaction with PIN verification"""
-    # Verify PIN before proceeding with transaction
+    # PIN verification is mandatory
+    if not pin_verify.pin:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="PIN is required for transactions"
+        )
+    
     pin_service = PINService(db)
     pin_service.verify_pin(current_user, pin_verify.pin)
     
@@ -472,7 +488,23 @@ def generate_qr_code(
     # Convert to base64
     buffer = io.BytesIO()
     img.save(buffer, format='PNG')
-    qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+    qr_image_data = buffer.getvalue()
+    qr_base64 = base64.b64encode(qr_image_data).decode()
+    
+    # Store QR code in database
+    from app.models.qr_code import QRCode
+    qr_code = QRCode(
+        user_id=current_user.id,
+        wallet_id=wallet.id,
+        qr_type="receive",
+        qr_data=str(qr_data),
+        qr_image=qr_image_data,
+        amount=str(amount) if amount else None,
+        memo=memo
+    )
+    
+    db.add(qr_code)
+    db.commit()
     
     return QRCodeResponse(
         qr_code=qr_base64,
@@ -491,16 +523,6 @@ def scan_qr_code(
     # This would decode the QR code data
     # For now, return the raw data
     return {"decoded_data": qr_data.qr_data}
-
-
-@router.get("/balances", response_model=List[dict])
-def get_wallet_balances(
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-):
-    """Get all wallet balances"""
-    balances = wallet_service.get_wallet_balances(db, current_user)
-    return balances
 
 
 @router.get("/{chain}/txs", response_model=List[TransactionResponse])

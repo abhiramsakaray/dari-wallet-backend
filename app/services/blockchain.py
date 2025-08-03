@@ -87,7 +87,77 @@ class EthereumProvider(BlockchainProvider):
         }
         
         signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+        return self.w3.to_hex(tx_hash)
+    
+    def estimate_gas(self, from_address: str, to_address: str, amount: Decimal) -> Dict:
+        amount_wei = self.w3.to_wei(amount, 'ether')
+        gas_estimate = self.w3.eth.estimate_gas({
+            'from': from_address,
+            'to': to_address,
+            'value': amount_wei
+        })
+        gas_price = self.w3.eth.gas_price
+        return {
+            'gas_limit': gas_estimate,
+            'gas_price': Decimal(str(self.w3.from_wei(gas_price, 'gwei'))),
+            'estimated_fee': Decimal(str(self.w3.from_wei(gas_estimate * gas_price, 'ether')))
+        }
+    
+    def get_transaction_status(self, tx_hash: str) -> Dict:
+        try:
+            tx = self.w3.eth.get_transaction(tx_hash)
+            receipt = self.w3.eth.get_transaction_receipt(tx_hash)
+            return {
+                'status': 'confirmed' if receipt and receipt.status == 1 else 'pending',
+                'block_number': receipt.blockNumber if receipt else None,
+                'gas_used': receipt.gasUsed if receipt else None
+            }
+        except Exception:
+            return {'status': 'failed'}
+
+
+class GanacheProvider(BlockchainProvider):
+    """Ganache blockchain provider for testing"""
+    
+    def __init__(self):
+        # Use local Ganache URL for testing
+        ganache_url = getattr(settings, 'ganache_rpc_url', 'http://localhost:8545')
+        self.w3 = Web3(Web3.HTTPProvider(ganache_url))
+    
+    def generate_wallet(self, encryption_key: bytes) -> Tuple[str, str, str]:
+        account = self.w3.eth.account.create()
+        address = account.address
+        private_key = account.key.hex()
+        encrypted_key = encrypt_private_key(private_key, encryption_key)
+        return address, encrypted_key, address
+    
+    def get_balance(self, address: str) -> Decimal:
+        balance_wei = self.w3.eth.get_balance(address)
+        balance_eth = self.w3.from_wei(balance_wei, 'ether')
+        return Decimal(str(balance_eth))
+    
+    def send_transaction(self, from_address: str, to_address: str, amount: Decimal,
+                        encrypted_private_key: str, encryption_key: bytes,
+                        gas_price: Optional[Decimal] = None) -> str:
+        private_key = decrypt_private_key(encrypted_private_key, encryption_key)
+        account = self.w3.eth.account.from_key(private_key)
+        
+        nonce = self.w3.eth.get_transaction_count(from_address)
+        gas_price_wei = gas_price or self.w3.eth.gas_price
+        amount_wei = self.w3.to_wei(amount, 'ether')
+        
+        transaction = {
+            'nonce': nonce,
+            'to': to_address,
+            'value': amount_wei,
+            'gas': 21000,
+            'gasPrice': gas_price_wei,
+            'chainId': 1337  # Ganache default chain ID
+        }
+        
+        signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
         return self.w3.to_hex(tx_hash)
     
     def estimate_gas(self, from_address: str, to_address: str, amount: Decimal) -> Dict:
@@ -155,7 +225,7 @@ class BSCProvider(BlockchainProvider):
         }
         
         signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key)
-        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.rawTransaction)
+        tx_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
         return self.w3.to_hex(tx_hash)
     
     def estimate_gas(self, from_address: str, to_address: str, amount: Decimal) -> Dict:
@@ -352,18 +422,27 @@ class BlockchainService:
     """Main blockchain service that manages multiple chain providers"""
     
     def __init__(self, chain: str = 'ethereum'):
+        self.chain = chain
+        self.providers = {
+            'ethereum': EthereumProvider(),
+            'ganache': GanacheProvider(),  # For testing
+            'bsc': BSCProvider(),
+            'tron': TronProvider(),
+            'solana': SolanaProvider(),
+            'bitcoin': BitcoinProvider(),
+            'xrp': XRPProvider()
+        }
         # Select provider based on chain
-        if chain == 'ethereum':
-            self.provider = EthereumProvider()
-        elif chain == 'bsc':
-            self.provider = BSCProvider()
-        elif chain == 'solana':
-            self.provider = SolanaProvider()
-        elif chain == 'bitcoin':
-            self.provider = BitcoinProvider()
-        # ... add other chains as needed
+        if chain in self.providers:
+            self.provider = self.providers[chain]
         else:
             raise ValueError(f"Unsupported chain: {chain}")
+
+    def get_provider(self, chain: str) -> BlockchainProvider:
+        """Get provider for specific chain"""
+        if chain not in self.providers:
+            raise ValueError(f"Unsupported chain: {chain}")
+        return self.providers[chain]
 
     def generate_wallet(self, encryption_key: bytes):
         return self.provider.generate_wallet(encryption_key)

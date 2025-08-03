@@ -9,6 +9,8 @@ services:
       - DATABASE_URL=postgresql://dari_user:dari_password@db:5432/dari_wallet
       - ASYNC_DATABASE_URL=postgresql+asyncpg://dari_user:dari_password@db:5432/dari_wallet
       - REDIS_URL=redis://redis:6379/0
+      - GANACHE_RPC_URL=http://ganache:8545
+      - ALLOWED_ORIGINS=["http://localhost:3000", "https://mybbi.in", "https://dariwallet.com", "https://www.mybbi.in", "https://www.dariwallet.com"]
     depends_on:
       - db
       - redis
@@ -34,6 +36,13 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+    restart: unless-stopped
+
+  ganache:
+    image: trufflesuite/ganache-cli:latest
+    ports:
+      - "8545:8545"
+    command: ganache-cli --port 8545 --network-id 1337 --accounts 10 --defaultBalanceEther 100
     restart: unless-stopped
 
   nginx:

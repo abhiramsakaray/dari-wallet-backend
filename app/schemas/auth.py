@@ -10,6 +10,7 @@ class UserRegister(BaseModel):
     full_name: Optional[str] = None
     phone: Optional[str] = None
     default_currency_id: Optional[int] = None
+    accept_terms: bool = False
     
     @validator('username')
     def username_alphanumeric(cls, v):
@@ -23,6 +24,12 @@ class UserRegister(BaseModel):
     def password_strength(cls, v):
         if len(v) < 8:
             raise ValueError('Password must be at least 8 characters long')
+        return v
+    
+    @validator('accept_terms')
+    def must_accept_terms(cls, v):
+        if not v:
+            raise ValueError('You must accept the Terms and Conditions to register')
         return v
 
 

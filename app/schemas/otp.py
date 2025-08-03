@@ -31,8 +31,8 @@ class OTPRequest(BaseModel):
 
 
 class OTPVerify(BaseModel):
-    email: str
-    otp_code: str
+    email: Optional[str] = None
+    otp_code: Optional[str] = None
     otp_type: OTPTypeEnum = OTPTypeEnum.LOGIN
 
 

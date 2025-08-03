@@ -7,7 +7,7 @@ from slowapi.errors import RateLimitExceeded
 import logging
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.routes import auth, wallet, alias, admin, currency, notification, pin
+from app.routes import auth, wallet, alias, admin, currency, notification, pin, terms
 from app.utils.logging import setup_logging
 
 # Create database tables (commented out for testing without database)
@@ -33,7 +33,14 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.allowed_origins,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "https://mybbi.in",
+        "https://dariwallet.com",
+        "https://www.mybbi.in",
+        "https://www.dariwallet.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,7 +49,7 @@ app.add_middleware(
 # Trusted host middleware
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=["*"]  # Configure based on your deployment
+    allowed_hosts=["*", "http://localhost:5173"]  # Configure based on your deployment
 )
 
 # Include routers
@@ -53,6 +60,7 @@ app.include_router(admin.router, prefix="/api/v1")
 app.include_router(currency.router, prefix="/api/v1")
 app.include_router(notification.router, prefix="/api/v1")
 app.include_router(pin.router, prefix="/api/v1")
+app.include_router(terms.router, prefix="/api/v1")
 
 # Health check endpoint
 @app.get("/health")
@@ -78,7 +86,11 @@ def root():
 async def global_exception_handler(request: Request, exc: Exception):
     """Global exception handler"""
     logging.error(f"Unhandled exception: {exc}")
-    return {"error": "Internal server error", "detail": str(exc)}
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal server error", "detail": str(exc)}
+    )
 
 
 if __name__ == "__main__":
